@@ -18,10 +18,7 @@ output:
     table: kable
 ---
 
-DataViz: Map Building Demo
-Heather Kitada Smalley
-Motivating Example
-In this demo we will be looking at factors for housing Fairfax County, VA.
+Looking at factors for housing Fairfax County, VA.
 
 # Polygon Maps
 ```{r}
@@ -194,9 +191,7 @@ tm_shape(joinVA, projection = 26916)+
 ```
 
 
-
-
-# Interactive Maps with Leaflet
+# Interactive Maps with Leaflet - aka the cool factor
 ## Pop-ups
 ```{r}
 # MEDIAN HOME VALUE
