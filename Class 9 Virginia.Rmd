@@ -1,5 +1,5 @@
 ---
-title: "Class 9, Group Porj: Virginia Census"
+title: "Class 9, Group Proj: Virginia Census"
 author: "Heather, Lucas, Zach, Alex, and Scott"
 date: "11/2/2020"
 output: 
@@ -92,7 +92,7 @@ Once you have an API key load it into your R environment so that you can access 
 library(tidycensus)
 ## Warning: package 'tidycensus' was built under R version 3.6.2
 # YOUR CODE SHOULD LOOK LIKE THIS
-census_api_key("95cc355c51b49acfd69273a888279d1d975ebc32") # <- INSERT YOUR OWN API KEY
+census_api_key("") # <- INSERT YOUR OWN API KEY
 ```
 
 
