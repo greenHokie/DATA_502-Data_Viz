@@ -1,0 +1,249 @@
+---
+title: "Class 9, Group Porj: Virginia Census"
+author: "Heather, Lucas, Zach, Alex, and Scott"
+date: "11/2/2020"
+output: 
+  html_document:
+    df_print: paged
+    fig_height: 5
+    fig_width: 8.5
+    highlight: default
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_depth: 2
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    table: kable
+---
+
+DataViz: Map Building Demo
+Heather Kitada Smalley
+Motivating Example
+In this demo we will be looking at factors for housing Fairfax County, VA.
+
+# Polygon Maps
+```{r}
+library(tidyverse)
+
+#install.packages("maps")
+library(maps)
+
+va_counties <- map_data("county", "virginia") %>% 
+  select(lon = long, lat, group, id = subregion)
+
+head(va_counties)
+```
+
+## Points
+```{r}
+ggplot(va_counties, aes(lon, lat)) + 
+  geom_point(size = .25, show.legend = FALSE) +
+  coord_quickmap()
+```
+
+
+## Polygons
+```{r}
+ggplot(va_counties, aes(lon, lat, group = group)) +
+  geom_polygon(fill = "white", colour = "grey50") + 
+  coord_quickmap()
+```
+
+# Simple Features Maps
+```{r}
+#install.packages("sf")
+library(sf)
+```
+
+```{r}
+#install.packages("tigris")
+library(tigris)
+options(tigris_use_cache = TRUE)
+
+# set year for boundaries 
+this.year = 2017 #the last census
+
+va_tracts <- tracts(state = 'VA', county = 'Fairfax County', 
+                    cb = T, year = this.year)
+
+# head(va_tracts)
+```
+
+## BASE PLOT
+```{r}
+plot(va_tracts)
+```
+
+## GGPLOT
+```{r}
+ggplot(va_tracts) + 
+  geom_sf() + 
+  coord_sf()
+```
+
+# Getting Data from the US Census Bureau
+First you will need to get a API key: https://api.census.gov/data/key_signup.html
+
+Once you have an API key load it into your R environment so that you can access the ACS data.
+```{r,  include=FALSE}
+#install.packages("tidycensus")
+library(tidycensus)
+## Warning: package 'tidycensus' was built under R version 3.6.2
+# YOUR CODE SHOULD LOOK LIKE THIS
+census_api_key("95cc355c51b49acfd69273a888279d1d975ebc32") # <- INSERT YOUR OWN API KEY
+```
+
+
+To install your API key for use in future sessions, run this function with `install = TRUE`.
+Many many variables are included in the ACS. The ACS has 1 and 5 year estimates. Use the following code to see what variables are available:
+```{r}
+# Set a year of interest
+this.year = 2010
+
+# This looks at the 5 year estimates
+# You can also do "acs1"
+vars <- load_variables(year = this.year,
+                      dataset = "acs5",
+                      cache = TRUE)
+
+# There are 25070 possible variables 
+dim(vars)
+```
+
+Explore several possible explantory variables from the American Community Survey (ACS) including:
+
+B02001_001: Total
+B03002_003: White alone (Not Hispanic or Latino)
+B03002_004 Black or African American alone (Not Hispanic or Latino)
+B03002_012: Hispanic or Latino
+B03002_005: Native American alone (Not Hispanic or Latino)
+B03002_006: Asian alone (Not Hispanic or Latino)
+B03002_007: Native Hawaiian or Pacific Islander alone (Not Hispanic or Latino)
+B03002_009: Multiple Races (Not Hispanic or Latino)
+B03002_008: Other (Not Hispanic or Latino)
+B25064_001 MEDIAN GROSS RENT
+B25071_001: Rent Burden (MEDIAN GROSS RENT AS A PERCENTAGE OF HOUSEHOLD INCOME)
+B19013_001: MEDIAN HOUSEHOLD INCOME IN PAST 12 MONTHS
+B01002_001: Median age
+B25115_016: Renter Occupied - family
+B25115_027: Renter Occupied - nonfamily
+
+## Getting data for one variable
+MEDIAN HOME VALUE
+```{r}
+vaMedv <- get_acs(geography = "tract", year=this.year,
+               state = "VA", county = "Fairfax County",
+               variables = "B25077_001E")
+head(vaMedv)
+```
+
+Notice that we’re going to need to do a little data wrangling so that we have a tidydata format to spread the column named ‘variable’.
+
+## Getting data for multiple variables 
+Get census tract level estimates for Fairfax County:
+```{r}
+## Names for variable types
+# Gives five year estimates
+vaHouse <- get_acs(geography = "tract", year=this.year,
+                  state = "VA", county = "Fairfax County", geometry = TRUE,
+                  variables = c(popululation = "B02001_001",
+                                median.gross.rent = "B25064_001",
+                                median.household.income = "B19013_001",
+                                rent.burden = "B25071_001"))
+## Getting data from the 2006-2010 5-year ACS
+head(vaHouse)
+```
+
+```{r}
+vaTidy<-as.data.frame(vaHouse)[,c(1,3:4)]%>%
+  spread(variable, estimate)
+
+# head(vaTidy)
+```
+
+# Geojoins and TMAPS
+Suppose that we want to study median house value (which is B25077_001E).
+
+```{r}
+vaMedv <- get_acs(geography = "tract", year=this.year,
+              state = "VA", county = "Fairfax County",
+              variables = "B25077_001E")%>%
+  mutate(AFFGEOID=paste0("1400000US", GEOID))
+```
+
+Getting data from the 2006-2010 5-year ACS
+In order to combine data from the US Census with our spatial data from trigis we will need to use a geo_join.
+
+```{r}
+joinVA<-geo_join(va_tracts, vaMedv, 
+                 by_sp="AFFGEOID", by_df="AFFGEOID")
+```
+
+
+Then we will use the tmap package to plot the data with a green color gradient (with 7 levels).
+```{r}
+#install.packages("tmap")
+library(tmap)
+## Warning: package 'tmap' was built under R version 3.6.2
+## USE TMAP PACKAGE
+tm_shape(joinVA, projection = 26916)+
+  tm_fill("estimate", style = "quantile", n=7, palette = "Greens")+
+  tm_legend(bg.color="white", bg.alpha=0.6)
+```
+
+
+
+
+# Interactive Maps with Leaflet
+## Pop-ups
+```{r}
+# MEDIAN HOME VALUE
+vaMedvG <- get_acs(geography = "tract", year=this.year,
+               state = "VA", county = "Fairfax County",
+               variables = "B25077_001E", 
+               geometry = TRUE)
+```
+
+```{r}
+#install.packages("leaflet")
+library(leaflet)
+```
+
+```{r}
+pal<-colorNumeric("Greens", domain=0:ceiling(max(vaMedvG$estimate, na.rm=TRUE)))
+
+popup<-paste("Tract: ", as.character(substring(vaMedvG$GEOID, 6, 11)), "<br>",
+             "Median Home Value: ", as.character(vaMedvG$estimate))
+
+leaflet()%>%
+  addProviderTiles("CartoDB.Positron")%>%
+  addPolygons(data=vaMedvG,
+              fillColor= ~pal(vaMedvG$estimate),
+              fillOpacity = .7,
+              weight =.5,
+              smoothFactor = 0.2,
+              popup = popup)
+
+```
+
+## Quantile Color Palette
+```{r}
+qpal<-colorQuantile("viridis", domain=vaMedvG$estimate,
+                       n=5,na.color="#FFFFFF")
+
+leaflet()%>%
+  addProviderTiles("CartoDB.Positron")%>%
+  addPolygons(data=vaMedvG,
+              fillColor= ~qpal(vaMedvG$estimate),
+              fillOpacity = 0.7,
+                  color="grey",
+                  opacity=.5,
+                  weight = 0.4,
+                  smoothFactor = 0.2,
+                  popup = popup)%>%
+      addLegend("bottomright", pal=qpal, values=vaMedvG$estimate,
+                opacity = .7,
+                title="Percentiles")
+```
