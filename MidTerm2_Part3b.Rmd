@@ -1,0 +1,186 @@
+---
+title: 'DATA 502: Midterm 2 Part 3'
+author: "Heather Rugnetta"
+date: "11/22/2020"
+output:
+  html_document:
+    df_print: paged
+    fig_height: 5
+    fig_width: 8.5
+    highlight: default
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_depth: 2
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+  word_document:
+    toc: yes
+    toc_depth: '2'
+---
+
+# Option 1: Create
+## Step 1: Use the variables from the dataset to ask a question about Thanksgiving
+### Who eats coconut pie for Thanksgiving?
+### Who eats (fruit) salad for Thanksgiving?
+
+# Setup
+## Load the Libraries
+```{r  setup, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(usmap)
+library(maps)
+library(xkcd)
+library(sf)
+library(maptools)
+library(rgeos)
+library (plotly)
+```
+
+## Import data
+```{r import}
+thanks <-read.csv( "https://raw.githubusercontent.com/kitadasmalley/FA2020_DataViz/main/data/useThanks.csv",
+header=TRUE, na.strings = c("","NA"))
+head(thanks)
+```
+```{r}
+thanks <- thanks[!is.na(thanks$DivName), ]
+```
+
+## Finagle data (in a good way)
+### Count Coconut Fans
+```{r coconut count}
+temp1 <- thanks%>% 
+  group_by(DivName) %>% 
+  summarize(Coconut = sum(coconut.pie01))
+
+```
+### Count the Fruit Salad peeps
+```{r fruit salad count}
+temp2 <- thanks%>% 
+  group_by(DivName) %>% 
+  summarize(FruitSalad = sum(fruit.salad01))
+
+```
+```{r who}
+temp3 <- thanks%>% 
+  group_by(DivName) %>% 
+  summarize(Respondants = sum(celebrate01))
+
+```
+
+### Join the results of the Coconut and Fruit Salad fans
+```{r join fruity folks}
+temp4 <- inner_join(temp1, temp2)
+temp5 <- inner_join(temp4, temp3)
+temp5 <- temp5 %>% 
+   mutate(DivName=paste(DivName, " Division", sep=""))
+temp5
+```
+```{r}
+temp6 <- temp5 %>% 
+  group_by(DivName) %>% 
+  summarize(propCoconut= Coconut/Respondants,
+         propFruit=FruitSalad/Respondants)
+temp6
+```
+
+## Get the US Map and States data
+```{r Map data}
+states <- usmap::us_map()
+colnames(states)[9] <- "Name"
+```
+
+```{r}
+fips<-read.csv("https://raw.githubusercontent.com/kitadasmalley/FA2020_DataViz/main/data/stateFIPS.csv", 
+               header=TRUE)
+colnames(fips)[1] <- "Name"
+#colnames(fips)[2] <- "state"
+fips
+```
+```{r}
+states <- usmap::us_map()
+colnames(states)[9] <- "Name"
+```
+
+```{r}
+stateFips <- states %>% select(fips, Name)
+stateFips <-stateFips %>% unique()
+
+```
+```{r}
+foodStates<-stateFips %>%
+  left_join(fips)
+
+```
+
+## Join the States and Food data by Division Name
+```{r join map and food data}
+fruitStates<- foodStates %>% 
+  left_join(temp6) 
+
+
+```
+
+
+# Plot
+## Step 2: Make your first attempt at creating a graphic
+Test out the US Map
+```{r b&w of states}
+plot_usmap()
+```
+
+## Initial look at Data
+```{r}
+plot_usmap(data= fruitStates, values ="propCoconut")
+```
+
+
+## Polishing
+
+```{r polish coconut}
+plot_usmap(data = fruitStates, values = "propCoconut", color = "black", labels=F) + 
+  scale_fill_continuous( low = "white", high = "blueviolet", name = "response") + 
+  labs(title = "Who Eats Coconut Pie for Thanksgiving? by State")
+```
+```{r}
+plot_usmap(data = fruitStates, values = "propFruit", color = "black", labels=F) + 
+  scale_fill_continuous( low = "white", high = "brown4", name = "Percentage", label = scales::percent) + 
+  labs(title = "Who Eats Fruit Salad for Thanksgiving? by US Region", subtitle = "Percentage of 1058 Respondants in 2015")
+```
+
+```{r}
+plot_usmap(data = fruitStates, values = "propFruit", color = "black", labels=F) + 
+  scale_fill_continuous( low = "white", high = "darkred", name = "% of Respondants", label = scales::label_percent(2))+
+  theme (legend.position = "right")+
+  labs(title = "Who Eats Fruit Salad for Thanksgiving? by US Region", subtitle = "Percentage of 1058 Respondants in 2015")
+
+```
+
+## Final Products
+```{r}
+plot_usmap(data = fruitStates, values = "propCoconut", color = "black", labels=F) + 
+  scale_fill_continuous( low = "black", high = "cyan", name = "% of Respondants", label = scales::label_percent(2))+
+  theme (legend.position = "right")+
+  labs(title = "Who Eats Coconut Pie for Thanksgiving? ", subtitle = "Percentage of US Region Respondants*", caption= "*Survey of 1,058 Respondants in 2015")+
+  theme(panel.background = element_rect(color = "black", fill = "lightblue"))
+
+```
+```{r}
+f <- plot_usmap(data = fruitStates, values = "propFruit", color = "black", labels=F) + 
+  scale_fill_continuous( low = "white", high = "darkred", name = "% of Respondants", label = scales::label_percent(2))+
+  theme (legend.position = "right")+
+  labs(title = "Who Eats Fruit Salad for Thanksgiving? by US Region",subtitle = "Percentage of US Region Respondants*", caption= "*Survey of 1,058 Respondants in 2015")+
+  theme(panel.background = element_rect(color = "black", fill = "darkgoldenrod1"))
+f <- ggplotly(f)
+f
+```
+
+### Other things I wanted to do, but ran out of time
+#### Create regional outlines 
+#### Incorporate Leaflet and hovering
+#### Compare with other obscure traditions in a "pie chart"
+
